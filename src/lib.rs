@@ -44,52 +44,6 @@ impl<'a> Token<'a> {
             position: position,
         }
     }
-
-    #[inline]
-    fn convert_term(term: &str) -> Term<'a> {
-        if term.len() <= MAX_STACK_TERM_LEN {
-            Term::Stack(ArrayString::<[_; MAX_STACK_TERM_LEN]>::from(term).unwrap())
-        } else {
-            Term::Heap(term.to_string())
-        }
-    }
-
-    #[inline]
-    pub fn term(&self) -> &str {
-        match self.term {
-            Term::Heap(ref s) => s.as_ref(),
-            Term::Stack(ref s) => s.as_ref(),
-            Term::Borrowed(ref s) => s,
-        }
-    }
-
-    #[inline]
-    pub fn optimized_term(&self) -> bool {
-        match self.term {
-            Term::Stack(_) => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn set_term_str(&mut self, term: &str) {
-        self.term = Token::convert_term(term);
-    }
-
-    #[inline]
-    pub fn set_term_string(&mut self, term: String) {
-        self.term = Term::Heap(term)
-    }
-
-    #[inline]
-    pub fn start_offset(&self) -> usize {
-        self.start_offset
-    }
-
-    #[inline]
-    pub fn end_offset(&self) -> usize {
-        self.start_offset + self.term().len()
-    }
 }
 
 pub trait Tokenizer<'a> {
