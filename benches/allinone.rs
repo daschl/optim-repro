@@ -20,17 +20,20 @@ The style changed between \
      In Rust 0.4, traits were added as a means to provide inheritance; In January 2014, the \
      editor-in-chief of Dr Dobb's, Andrew Binstock, commented on Rust's chances to become a \
      competitor to C++.";
+pub trait CharFilter {
+    fn is_char(&self, c: char) -> bool;
+}
 
-pub struct CharTokenIter<'a> {
-    filter: fn(char) -> bool,
+pub struct CharTokenIter<'a, F: CharFilter> {
+    filter: F,
     input: &'a str,
     byte_offset: usize,
     char_offset: usize,
     position: usize,
 }
 
-impl<'a> CharTokenIter<'a> {
-    pub fn new(filter: fn(char) -> bool, input: &'a str) -> Self {
+impl<'a, F: CharFilter> CharTokenIter<'a, F> {
+    pub fn new(filter: F, input: &'a str) -> Self {
         CharTokenIter {
             filter: filter,
             input: input,
@@ -41,7 +44,7 @@ impl<'a> CharTokenIter<'a> {
     }
 }
 
-impl<'a> Iterator for CharTokenIter<'a> {
+impl<'a, F: CharFilter> Iterator for CharTokenIter<'a, F> {
     type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Token<'a>> {
@@ -50,14 +53,14 @@ impl<'a> Iterator for CharTokenIter<'a> {
         self.input[self.byte_offset..]
             .char_indices()
             .enumerate()
-            .skip_while(|&(_, (_, c))| if (self.filter)(c) {
+            .skip_while(|&(_, (_, c))| if (self.filter).is_char(c) {
                 skipped_bytes += c.len_utf8();
                 skipped_chars += 1;
                 true
             } else {
                 false
             })
-            .find(|&(_, (_, c))| (self.filter)(c))
+            .find(|&(_, (_, c))| (self.filter).is_char(c))
             .map(|(cidx, (bidx, _))| {
                 let slice = &self.input[self.byte_offset + skipped_bytes..self.byte_offset + bidx];
                 let token = Token::from_str(slice, self.char_offset + skipped_chars, self.position);
@@ -80,20 +83,22 @@ impl<'a> Iterator for CharTokenIter<'a> {
     }
 }
 
-
 pub struct WhitespaceTokenizer;
 
 impl<'a> Tokenizer<'a> for WhitespaceTokenizer {
-    type TokenIter = CharTokenIter<'a>;
+    type TokenIter = CharTokenIter<'a, WhitespaceCharFilter>;
 
     fn tokenize(&self, input: &'a str) -> Self::TokenIter {
-        CharTokenIter::new(is_whitespace, input)
+        CharTokenIter::new(WhitespaceCharFilter, input)
     }
 }
 
-#[inline]
-pub fn is_whitespace(c: char) -> bool {
-    c.is_whitespace()
+pub struct WhitespaceCharFilter;
+
+impl CharFilter for WhitespaceCharFilter {
+    fn is_char(&self, c: char) -> bool {
+        c.is_whitespace()
+    }
 }
 
 #[bench]
